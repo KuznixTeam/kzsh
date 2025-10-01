@@ -1,0 +1,14 @@
+build/
+*.o
+*.out
+*.log
+Makefile
+Makefile.in
+Makefile.am
+configure
+config.h
+config.log
+config.status
+autom4te.cache/
+dist/
+kshtest/
