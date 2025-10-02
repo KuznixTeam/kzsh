@@ -14,3 +14,4 @@ dist/
 debian/kzsh/
 debian/kzsh-dev/
 debian/tmp/
+kzsh
