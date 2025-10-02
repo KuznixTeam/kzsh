@@ -1,25 +1,25 @@
-Source: ksh
+Source: kzsh-shell
 Section: utils
 Priority: optional
 Maintainer: Krzysztof Demir Kuzniak <krzysztofdemirkuzniak@gmail.com>
 Build-Depends: debhelper-compat (= 13), gcc, g++, libstdc++-dev, libncurses-dev, libreadline-dev
 Standards-Version: 3.9.6
-Homepage: https://github.com/KuznixTeam/ksh
+Homepage: https://github.com/KuznixTeam/kzsh
 
-Package: ksh
+Package: kzsh-shell
 Section: utils
 Priority: optional
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, libstdc++6, libncurses6, libreadline8
 Description: Kuznix Shell - a bash-like shell
- Kuznix Shell (ksh) is a modern, bash-compatible shell written in C/C++ with
+ Kuznix Shell (kzsh) is a modern, bash-compatible shell written in C/C++ with
  support for builtins, history, aliases, and configuration through rc files.
  It provides an interactive command line and supports scripting.
 
-Package: ksh-dev
+Package: kzsh-dev
 Section: libdevel
 Architecture: any
-Depends: ksh (= ${binary:Version}), ${misc:Depends}
+Depends: kzsh (= ${binary:Version}), ${misc:Depends}
 Description: Development files for Kuznix Shell
  Development headers and libraries for building software that links against
  Kuznix Shell. This package contains header files and static libraries used

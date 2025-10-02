@@ -1,4 +1,4 @@
-Name:           ksh
+Name:           kzsh
 Version:        0.1
 Release:        1%{?dist}
 Summary:        Kuznix Shell - Bash-like shell
@@ -10,7 +10,7 @@ BuildRequires:  gcc, g++, make, autoconf, automake
 Requires:       bash
 
 %description
-Kuznix Shell (ksh) is a modern bash-like shell written in C/C++ with modular features, history, aliases, and more.
+Kuznix Shell (kzsh) is a modern bash-like shell written in C/C++ with modular features, history, aliases, and more.
 
 %prep
 %setup -q
@@ -23,7 +23,7 @@ make
 make install DESTDIR=%{buildroot}
 
 %files
-%{_bindir}/ksh
+%{_bindir}/kzsh
 %doc README.md
 
 %changelog

@@ -1,4 +1,4 @@
-# Kuznix Shell (ksh)
+# Kuznix Shell (kzsh)
 
 A bash-like shell written in C and C++.
 
