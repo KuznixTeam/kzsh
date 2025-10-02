@@ -1,0 +1,4 @@
+debian/tmp/usr/include/ksh-utils.h
+debian/tmp/usr/include/libksh-extra.h
+debian/tmp/usr/include/libksh-compat.h
+debian/tmp/usr/include/libksh-plugins.h

@@ -1,1 +1,11 @@
 debian/tmp/usr/bin/ksh
+debian/tmp/usr/lib/libksh.so
+debian/tmp/usr/lib/libksh-extra.so
+debian/tmp/usr/lib/libksh-compat.so
+debian/tmp/usr/lib/libksh-plugins.so
+debian/tmp/usr/lib/debug/usr/bin/ksh
+debian/tmp/usr/share/ksh-completion/example-completion.sh
+debian/tmp/usr/share/locale/libksh-locale.mo
+debian/tmp/usr/share/doc/libksh/README
+debian/tmp/usr/share/doc/libksh-examples/example.sh
+debian/tmp/usr/share/libksh-tests/test.sh

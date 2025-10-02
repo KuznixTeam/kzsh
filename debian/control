@@ -2,107 +2,25 @@ Source: ksh
 Section: utils
 Priority: optional
 Maintainer: Krzysztof Demir Kuzniak <krzysztofdemirkuzniak@gmail.com>
-Build-Depends: debhelper-compat (= 13), gcc, g++, libstdc++-dev, libncurses-dev, libreadline-dev, libpam0g-dev, libselinux1-dev
+Build-Depends: debhelper-compat (= 13), gcc, g++, libstdc++-dev, libncurses-dev, libreadline-dev
 Standards-Version: 3.9.6
 Homepage: https://github.com/KuznixTeam/ksh
 
 Package: ksh
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, libstdc++6, libncurses6, libreadline8, libpam0g, libselinux1
-Description: Kuznix Shell - a bash-like shell
-
-Package: libksh
-Section: libs
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: Kuznix Shell shared library
-
-Package: libksh-utils
 Section: utils
+Priority: optional
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: Utility programs for Kuznix Shell
+Depends: ${shlibs:Depends}, ${misc:Depends}, libstdc++6, libncurses6, libreadline8
+Description: Kuznix Shell - a bash-like shell
+ Kuznix Shell (ksh) is a modern, bash-compatible shell written in C/C++ with
+ support for builtins, history, aliases, and configuration through rc files.
+ It provides an interactive command line and supports scripting.
 
-Package: libksh-utils-dev
+Package: ksh-dev
 Section: libdevel
 Architecture: any
-Depends: libksh-utils (= ${binary:Version}), ${misc:Depends}
-Description: Development files for Kuznix Shell utility library
-
-Package: libksh-extra
-Section: libs
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: Extra modules for Kuznix Shell
-
-Package: libksh-extra-dev
-Section: libdevel
-Architecture: any
-Depends: libksh-extra (= ${binary:Version}), ${misc:Depends}
-Description: Development files for Kuznix Shell extra modules
-
-Package: libksh-compat
-Section: libs
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: Compatibility layer for Kuznix Shell
-
-Package: libksh-compat-dev
-Section: libdevel
-Architecture: any
-Depends: libksh-compat (= ${binary:Version}), ${misc:Depends}
-Description: Development files for Kuznix Shell compatibility layer
-
-Package: libksh-plugins
-Section: libs
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: Plugins for Kuznix Shell
-
-Package: libksh-plugins-dev
-Section: libdevel
-Architecture: any
-Depends: libksh-plugins (= ${binary:Version}), ${misc:Depends}
-Description: Development files for Kuznix Shell plugins
-
-Package: libksh-doc
-Section: doc
-Architecture: all
-Depends: ${misc:Depends}
-Description: Documentation for Kuznix Shell
-
-Package: libksh-tests
-Section: devel
-Architecture: any
-Depends: ${misc:Depends}
-Description: Test suite for Kuznix Shell
-
-Package: libksh-examples
-Section: doc
-Architecture: all
-Depends: ${misc:Depends}
-Description: Example scripts and configs for Kuznix Shell
-
-Package: libksh-static
-Section: libdevel
-Architecture: any
-Depends: libksh (= ${binary:Version}), ${misc:Depends}
-Description: Static library for Kuznix Shell
-
-Package: libksh-dbg
-Section: debug
-Architecture: any
-Depends: libksh (= ${binary:Version}), ${misc:Depends}
-Description: Debug symbols for Kuznix Shell
-
-Package: libksh-locale
-Section: localization
-Architecture: all
-Depends: ${misc:Depends}
-Description: Locales and translations for Kuznix Shell
-
-Package: libksh-completion
-Section: shells
-Architecture: all
-Depends: ${misc:Depends}
-Description: Shell completion scripts for Kuznix Shell
+Depends: ksh (= ${binary:Version}), ${misc:Depends}
+Description: Development files for Kuznix Shell
+ Development headers and libraries for building software that links against
+ Kuznix Shell. This package contains header files and static libraries used
+ by developers integrating with ksh.

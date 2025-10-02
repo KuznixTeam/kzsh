@@ -1,0 +1,4 @@
+ksh-dbgsym_0.1-1_amd64.deb debug optional automatic=yes
+ksh-dev_0.1-1_amd64.deb libdevel optional
+ksh_0.1-1_amd64.buildinfo utils optional
+ksh_0.1-1_amd64.deb utils optional

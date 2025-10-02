@@ -1,5 +1,14 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* KSH build date */
+#undef KSH_BUILD_DATE
+
+/* KSH build target */
+#undef KSH_TARGET
+
+/* KSH version */
+#undef KSH_VERSION
+
 /* Name of package */
 #undef PACKAGE
 

@@ -2,7 +2,9 @@
 cmake_minimum_required(VERSION 3.10)
 project(ksh LANGUAGES C CXX)
 set(KSH_VERSION "0.1")
-string(TIMESTAMP KSH_BUILD_DATE "%Y-%m-%d" UTC)
+# Use local time for the build date
+string(TIMESTAMP KSH_BUILD_DATE "%Y-%m-%d")
+# Construct a target string from processor and system name
 set(KSH_TARGET "${CMAKE_SYSTEM_PROCESSOR}-${CMAKE_SYSTEM_NAME}")
 add_executable(ksh
 	src/main.c

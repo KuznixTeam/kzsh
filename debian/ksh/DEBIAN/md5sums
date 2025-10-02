@@ -1,0 +1,13 @@
+ea104476ac64985090e8b722eea0a18e  usr/bin/ksh
+d41d8cd98f00b204e9800998ecf8427e  usr/lib/debug/usr/bin/ksh
+d41d8cd98f00b204e9800998ecf8427e  usr/lib/libksh-compat.so
+d41d8cd98f00b204e9800998ecf8427e  usr/lib/libksh-extra.so
+d41d8cd98f00b204e9800998ecf8427e  usr/lib/libksh-plugins.so
+d41d8cd98f00b204e9800998ecf8427e  usr/lib/libksh.so
+56e5e51a90801416f7e79f95628ad6ce  usr/share/doc/ksh/changelog.Debian.gz
+8b74d0af05ec9d4557c3852a05b3eb44  usr/share/doc/ksh/copyright
+d41d8cd98f00b204e9800998ecf8427e  usr/share/doc/libksh-examples/example.sh
+d41d8cd98f00b204e9800998ecf8427e  usr/share/doc/libksh/README
+d41d8cd98f00b204e9800998ecf8427e  usr/share/ksh-completion/example-completion.sh
+d41d8cd98f00b204e9800998ecf8427e  usr/share/libksh-tests/test.sh
+d41d8cd98f00b204e9800998ecf8427e  usr/share/locale/libksh-locale.mo

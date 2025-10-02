@@ -613,6 +613,9 @@ ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
 LIBOBJS
+KSH_TARGET
+KSH_BUILD_DATE
+KSH_VERSION
 am__fastdepCXX_FALSE
 am__fastdepCXX_TRUE
 CXXDEPMODE
@@ -5098,6 +5101,23 @@ ac_config_headers="$ac_config_headers config.h"
 ac_config_files="$ac_config_files Makefile"
 
 
+
+## Build metadata: version, date, target
+KSH_VERSION=0.1
+
+
+printf "%s\n" "#define KSH_VERSION \"\${KSH_VERSION}\"" >>confdefs.h
+
+KSH_BUILD_DATE=`date +%Y-%m-%d`
+
+
+printf "%s\n" "#define KSH_BUILD_DATE \"\${KSH_BUILD_DATE}\"" >>confdefs.h
+
+# Determine a simple target string
+KSH_TARGET="`uname -m`-`uname -s`"
+
+
+printf "%s\n" "#define KSH_TARGET \"\${KSH_TARGET}\"" >>confdefs.h
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure

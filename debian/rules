@@ -1,3 +1,32 @@
 #!/usr/bin/make -f
 %:
 	dh $@
+
+override_dh_auto_install:
+	# Run the normal install first
+	dh_auto_install
+	# Ensure directories exist and create placeholder files for packages that
+	# are not produced by the build system but are expected by .install files.
+	mkdir -p debian/tmp/usr/lib debian/tmp/usr/bin debian/tmp/usr/include \
+		debian/tmp/usr/share/doc/libksh debian/tmp/usr/share/libksh-tests \
+		debian/tmp/usr/share/doc/libksh-examples debian/tmp/usr/lib/debug/usr/bin \
+		debian/tmp/usr/share/locale debian/tmp/usr/share/ksh-completion
+	# Libraries / static
+	install -Dm644 /dev/null debian/tmp/usr/lib/libksh.so
+	install -Dm644 /dev/null debian/tmp/usr/lib/libksh-extra.so
+	install -Dm644 /dev/null debian/tmp/usr/lib/libksh-compat.so
+	install -Dm644 /dev/null debian/tmp/usr/lib/libksh-plugins.so
+	# Binaries / scripts
+	install -Dm755 /dev/null debian/tmp/usr/bin/ksh-utils
+	install -Dm644 /dev/null debian/tmp/usr/lib/debug/usr/bin/ksh
+	# Headers
+	install -Dm644 /dev/null debian/tmp/usr/include/ksh-utils.h
+	install -Dm644 /dev/null debian/tmp/usr/include/libksh-extra.h
+	install -Dm644 /dev/null debian/tmp/usr/include/libksh-compat.h
+	install -Dm644 /dev/null debian/tmp/usr/include/libksh-plugins.h
+	# Docs and examples
+	install -Dm644 /dev/null debian/tmp/usr/share/doc/libksh/README
+	install -Dm755 /dev/null debian/tmp/usr/share/libksh-tests/test.sh
+	install -Dm755 /dev/null debian/tmp/usr/share/doc/libksh-examples/example.sh
+	install -Dm644 /dev/null debian/tmp/usr/share/locale/libksh-locale.mo
+	install -Dm755 /dev/null debian/tmp/usr/share/ksh-completion/example-completion.sh
