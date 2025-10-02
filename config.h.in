@@ -1,13 +1,19 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* KSH build date */
-#undef KSH_BUILD_DATE
+/* KSH copyright year */
+#undef KSH_COPYRIGHT_YEAR
 
-/* KSH build target */
-#undef KSH_TARGET
+/* KZSH build date */
+#undef KZSH_BUILD_DATE
 
-/* KSH version */
-#undef KSH_VERSION
+/* KZSH copyright year */
+#undef KZSH_COPYRIGHT_YEAR
+
+/* KZSH build target */
+#undef KZSH_TARGET
+
+/* KZSH version */
+#undef KZSH_VERSION
 
 /* Name of package */
 #undef PACKAGE

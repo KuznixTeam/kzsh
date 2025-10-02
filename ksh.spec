@@ -1,9 +1,9 @@
 Name:           kzsh
-Version:        0.1
+Version:        0.1.1
 Release:        1%{?dist}
 Summary:        Kuznix Shell - Bash-like shell
 License:        GPL-3.0-or-later
-URL:            https://github.com/KuznixTeam/ksh
+URL:            https://github.com/KuznixTeam/kzsh
 Source0:        %{name}-%{version}.tar.gz
 
 BuildRequires:  gcc, g++, make, autoconf, automake
@@ -27,5 +27,5 @@ make install DESTDIR=%{buildroot}
 %doc README.md
 
 %changelog
-* Wed Oct 02 2025 Krzysztof Demir Kuzniak <krzysztofdemirkuzniak@gmail.com> - 0.1-1
-- Initial RPM release
+* Wed Oct 02 2025 Krzysztof Demir Kuzniak <krzysztofdemirkuzniak@gmail.com> - 0.1.1-1
+- Initial RPM release (kzsh)

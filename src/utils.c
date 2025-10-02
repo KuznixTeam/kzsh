@@ -2,5 +2,5 @@
 #include <stdio.h>
 
 void print_banner(const char *version) {
-    printf("ksh-%s\n", version);
+    printf("kzsh-%s\n", version);
 }

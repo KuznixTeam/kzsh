@@ -3,6 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#ifdef HAVE_READLINE
+#include <readline/readline.h>
+#include <readline/history.h>
+#endif
+#include <signal.h>
 
 #include "exec.h"
 #include "history.h"
@@ -12,6 +17,17 @@
 extern int alias_count;
 extern char *names[];
 extern char *values[];
+
+/* SIGINT handling: flag and handler at file scope so we don't create nested functions. */
+static volatile sig_atomic_t got_sigint = 0;
+static void sigint_handler(int signo) {
+    (void)signo;
+    got_sigint = 1;
+#ifdef HAVE_READLINE
+    /* Tell readline to abort the current line and return */
+    rl_done = 1;
+#endif
+}
 
 // Forward-declare helper used by `source` builtin too
 int shell_eval_line(const char *line) {
@@ -59,10 +75,36 @@ int shell_eval_line(const char *line) {
 void shell_start(const char *version) {
     // For fastfetch output compatibility
     setenv("KSH_VERSION", version, 1);
-    // Load only .kshrc (do not auto-source .bashrc or .zshrc). Users who want
-    // to load other rc files should add a line to their .kshrc such as
-    // `source ~/.bashrc` or `source ~/.zshrc`.
-    char *home = getenv("HOME");
+    /* Enable color-friendly defaults for external tools (ls, grep, make output, compilers, etc.)
+       Users can override these in their environment or in ~/.kshrc. We only set defaults when
+       the variables are not already present. */
+    if (!getenv("TERM") || strcmp(getenv("TERM"), "") == 0) {
+        setenv("TERM", "xterm-256color", 0);
+    }
+    if (!getenv("COLORTERM") || strcmp(getenv("COLORTERM"), "") == 0) {
+        setenv("COLORTERM", "truecolor", 0);
+    }
+    /* Many tools honor FORCE_COLOR, CLICOLOR or CLICOLOR_FORCE to force colored output. */
+    if (!getenv("CLICOLOR")) setenv("CLICOLOR", "1", 0);
+    if (!getenv("CLICOLOR_FORCE")) setenv("CLICOLOR_FORCE", "1", 0);
+    if (!getenv("FORCE_COLOR")) setenv("FORCE_COLOR", "1", 0);
+    /* Provide a minimal LS_COLORS mapping if none is present so `ls --color` has decent defaults. */
+    if (!getenv("LS_COLORS")) {
+        /* A compact, commonly used mapping: directories, links, sockets, pipes, executables, block/char devices */
+        setenv("LS_COLORS", "di=01;34:ln=01;36:so=01;35:pi=40;33:ex=01;32:bd=40;33;01:cd=40;33;01", 0);
+    }
+    /* Install signal handlers so Ctrl-C interrupts the input but doesn't kill the shell.
+       Child processes will restore default handlers in exec.c. */
+    struct sigaction sa;
+    sa.sa_handler = sigint_handler;
+     sigemptyset(&sa.sa_mask);
+     sa.sa_flags = 0;
+     sigaction(SIGINT, &sa, NULL);
+
+     /* Load only .kshrc (do not auto-source .bashrc or .zshrc). Users who want
+         to load other rc files should add a line to their .kshrc such as
+         `source ~/.bashrc` or `source ~/.zshrc`. */
+     char *home = getenv("HOME");
     const char *rcfile = ".kshrc";
     if (home) {
         char path[512];
@@ -113,11 +155,24 @@ void shell_start(const char *version) {
             }
         }
         // Color codes: user (cyan), @ (default), hostname (green), : (default), path (yellow), $ (default)
-        printf("\033[36m%s\033[0m@\033[32m%s\033[0m:\033[33m%s\033[0m$ ", user ? user : "user", hostname, pwd_display);
-        if (!fgets(line, sizeof(line), stdin)) break;
-        // Remove newline
-        line[strcspn(line, "\n")] = 0;
-        if (strlen(line) == 0) continue;
-        shell_eval_line(line);
+    /* Use readline when available for line editing and history navigation */
+#ifdef HAVE_READLINE
+    char prompt[512];
+    snprintf(prompt, sizeof(prompt), "\033[36m%s\033[0m@\033[32m%s\033[0m:\033[33m%s\033[0m$ ", user ? user : "user", hostname, pwd_display);
+    char *rl = readline(prompt);
+    if (!rl) break; /* EOF */
+    if (rl[0] != '\0') {
+        add_history(rl);
+        shell_eval_line(rl);
+    }
+    free(rl);
+#else
+    printf("\033[36m%s\033[0m@\033[32m%s\033[0m:\033[33m%s\033[0m$ ", user ? user : "user", hostname, pwd_display);
+    if (!fgets(line, sizeof(line), stdin)) break;
+    /* Remove newline */
+    line[strcspn(line, "\n")] = 0;
+    if (strlen(line) == 0) continue;
+    shell_eval_line(line);
+#endif
     }
 }

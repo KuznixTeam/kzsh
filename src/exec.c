@@ -22,6 +22,10 @@ int exec_builtin(const char *cmd, int argc, char **argv) {
     // If not a builtin, try to exec external binary
     pid_t pid = fork();
     if (pid == 0) {
+        /* Restore default signal handlers in child so Ctrl-C and others behave normally */
+        signal(SIGINT, SIG_DFL);
+        signal(SIGTERM, SIG_DFL);
+        signal(SIGQUIT, SIG_DFL);
         execvp(cmd, argv);
         perror("execvp");
         _exit(127);

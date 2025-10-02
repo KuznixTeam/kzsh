@@ -4,7 +4,7 @@
 #include <string>
 
 void print_banner(const std::string& version) {
-    std::cout << "ksh-" << version << std::endl;
+    std::cout << "kzsh-" << version << std::endl;
 }
 
 bool load_kshrc() {

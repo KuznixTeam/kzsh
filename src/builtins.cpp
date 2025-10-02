@@ -2,6 +2,8 @@
 #include <iostream>
 #include "../include/ksh.h"
 
+extern "C" void print_version();
+
 void ksh_help() {
     std::cout << "Kuznix Shell Help: Built-in commands..." << std::endl;
     std::cout << "  help      Show help" << std::endl;
@@ -9,15 +11,7 @@ void ksh_help() {
 }
 
 void ksh_version() {
-#ifdef KSH_VERSION
-    std::cout << "ksh (Kuznix Shell) version " << KSH_VERSION << std::endl;
-#else
-    std::cout << "ksh (Kuznix Shell) version unknown" << std::endl;
-#endif
-#ifdef KSH_BUILD_DATE
-    std::cout << "Build date: " << KSH_BUILD_DATE << std::endl;
-#endif
-#ifdef KSH_TARGET
-    std::cout << "Target: " << KSH_TARGET << std::endl;
-#endif
+    /* Reuse the C print_version() routine so both the binary --version and
+       the built-in version command produce identical output. */
+    print_version();
 }

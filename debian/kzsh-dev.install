@@ -1,0 +1,4 @@
+usr/include/kzsh-utils.h
+usr/include/libkzsh-extra.h
+usr/include/libkzsh-compat.h
+usr/include/libkzsh-plugins.h

@@ -11,4 +11,5 @@ config.log
 config.status
 autom4te.cache/
 dist/
-kshtest/
+debian/kzsh/
+debian/kzsh-dev/

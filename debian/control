@@ -1,4 +1,4 @@
-Source: kzsh-shell
+Source: kzsh
 Section: utils
 Priority: optional
 Maintainer: Krzysztof Demir Kuzniak <krzysztofdemirkuzniak@gmail.com>
@@ -6,7 +6,7 @@ Build-Depends: debhelper-compat (= 13), gcc, g++, libstdc++-dev, libncurses-dev,
 Standards-Version: 3.9.6
 Homepage: https://github.com/KuznixTeam/kzsh
 
-Package: kzsh-shell
+Package: kzsh
 Section: utils
 Priority: optional
 Architecture: any
@@ -23,4 +23,4 @@ Depends: kzsh (= ${binary:Version}), ${misc:Depends}
 Description: Development files for Kuznix Shell
  Development headers and libraries for building software that links against
  Kuznix Shell. This package contains header files and static libraries used
- by developers integrating with ksh.
+ by developers integrating with kzsh.

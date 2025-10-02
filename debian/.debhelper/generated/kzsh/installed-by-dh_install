@@ -1,0 +1,11 @@
+debian/tmp/usr/bin/kzsh
+debian/tmp/usr/lib/libkzsh.so
+debian/tmp/usr/lib/libkzsh-extra.so
+debian/tmp/usr/lib/libkzsh-compat.so
+debian/tmp/usr/lib/libkzsh-plugins.so
+debian/tmp/usr/lib/debug/usr/bin/kzsh
+debian/tmp/usr/share/kzsh-completion/example-completion.sh
+debian/tmp/usr/share/locale/libkzsh-locale.mo
+debian/tmp/usr/share/doc/libkzsh/README
+debian/tmp/usr/share/doc/libkzsh-examples/example.sh
+debian/tmp/usr/share/libkzsh-tests/test.sh

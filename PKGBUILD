@@ -1,10 +1,9 @@
-pkgname=ksh
-pkgver=0.1
+pkgname=kzsh
+pkgver=0.1.1
 pkgrel=1
 pkgdesc="Kuznix Shell - Bash-like shell"
 arch=('x86_64')
 url="https://github.com/KuznixTeam/kzsh"
-pkgname=kzsh
 license=('GPL3')
 depends=('bash')
 makedepends=('gcc' 'g++' 'make' 'autoconf' 'automake')
