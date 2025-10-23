@@ -1,12 +1,24 @@
 project('kzsh', ['c', 'cpp'], version: '0.1.2')
 
-# Project version and build metadata
 ksh_version = meson.project_version()
 ksh_build_date = run_command('date', '+%Y-%m-%d').stdout().strip()
 ksh_target = host_machine.cpu_family() + '-' + host_machine.system()
 
-# Source files (recursive glob)
-ksh_sources = files('src/*.c', 'src/*.cpp')
+# Gather sources safely (Meson doesn't expand wildcards automatically)
+src_dir = 'src'
+ksh_sources = []
+
+if fs.exists(src_dir)
+  ksh_sources += files()
+  ksh_sources += [files(
+    *[f for f : fs.glob('src/*.c')]
+  )]
+  ksh_sources += [files(
+    *[f for f : fs.glob('src/*.cpp')]
+  )]
+else
+  warning('Source directory "src" does not exist yet — skipping source files.')
+endif
 
 # Dependencies
 readline_dep = dependency('readline', required: true)
@@ -25,5 +37,4 @@ ksh_exe = executable('kzsh',
   ]
 )
 
-# Optional install message
 message('Building kzsh ' + ksh_version + ' for ' + ksh_target + ' (' + ksh_build_date + ')')
