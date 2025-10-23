@@ -1,17 +1,8 @@
-project('kzsh', 'c', 'cpp', version : '0.1.1')
+project('kzsh', 'c', 'cpp', version : '0.1.2')
 ksh_sources = files(
-	'src/main.c',
-	'src/builtins.c',
-	'src/builtins.cpp',
-	'src/builtins_cpp.cpp',
-	'src/shell.c',
-	'src/exec.c',
-	'src/utils.c',
-	'src/history.c',
-	'src/env.c',
-	'src/alias.c'
+	'src/*'
 )
-ksh_version = '0.1.1'
+ksh_version = '0.1.2'
 # Use local date at configure time for build date
 ksh_build_date = run_command('date', '+%Y-%m-%d').stdout().strip()
 # Compose a reasonable target string from host_machine
