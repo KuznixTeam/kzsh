@@ -4,20 +4,15 @@ ksh_version = meson.project_version()
 ksh_build_date = run_command('date', '+%Y-%m-%d').stdout().strip()
 ksh_target = host_machine.cpu_family() + '-' + host_machine.system()
 
-# Gather sources safely (Meson doesn't expand wildcards automatically)
+# Collect all source files safely
 src_dir = 'src'
 ksh_sources = []
 
 if fs.exists(src_dir)
-  ksh_sources += files()
-  ksh_sources += [files(
-    *[f for f : fs.glob('src/*.c')]
-  )]
-  ksh_sources += [files(
-    *[f for f : fs.glob('src/*.cpp')]
-  )]
+  ksh_sources += fs.glob('src/*.c')
+  ksh_sources += fs.glob('src/*.cpp')
 else
-  warning('Source directory "src" does not exist yet — skipping source files.')
+  warning('Source directory "src" does not exist — skipping source files.')
 endif
 
 # Dependencies
