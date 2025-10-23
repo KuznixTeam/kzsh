@@ -4,11 +4,7 @@ ksh_version = meson.project_version()
 ksh_build_date = run_command('date', '+%Y-%m-%d').stdout().strip()
 ksh_target = host_machine.cpu_family() + '-' + host_machine.system()
 
-# Detect compilers explicitly (for old Meson versions)
-cc = meson.get_compiler('c')
-cpp = meson.get_compiler('cpp')
-
-# Collect sources manually (compatible with all Meson versions)
+# Collect source files using shell (portable, no modules)
 ksh_sources = []
 if run_command('test', '-d', 'src').returncode() == 0
   c_files = run_command('sh', '-c', 'echo src/*.c', check: false).stdout().strip().split()
@@ -22,15 +18,14 @@ else
   warning('Source directory "src" does not exist — skipping source files.')
 endif
 
-# Dependencies
+# Dependencies (glibc is implicit)
 readline_dep = dependency('readline', required: true)
-glibc_dep = cc.find_library('c', required: true)
 
 # Build executable
-ksh_exe = executable('kzsh',
+executable('kzsh',
   ksh_sources,
   include_directories: include_directories('include'),
-  dependencies: [readline_dep, glibc_dep],
+  dependencies: [readline_dep],
   install: true,
   cpp_args: [
     '-DKSH_VERSION="' + ksh_version + '"',
