@@ -1,20 +1,17 @@
 project('kzsh', ['c', 'cpp'], version: '0.1.2')
 
-fs = import('fs')  # ✅ import filesystem module
+# Import the file utilities
+fs = import('filesystem')
 
 ksh_version = meson.project_version()
 ksh_build_date = run_command('date', '+%Y-%m-%d').stdout().strip()
 ksh_target = host_machine.cpu_family() + '-' + host_machine.system()
 
-# Collect all source files safely
-src_dir = 'src'
-ksh_sources = []
+# Gather all source files from src/
+ksh_sources = fs.subdir_glob('src', '*.c', '*.cpp')
 
-if fs.exists(src_dir)
-  ksh_sources += fs.glob('src/*.c')
-  ksh_sources += fs.glob('src/*.cpp')
-else
-  warning('Source directory "src" does not exist — skipping source files.')
+if ksh_sources.length() == 0
+  warning('No source files found in src/.')
 endif
 
 # Dependencies
