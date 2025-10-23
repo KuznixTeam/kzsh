@@ -1,5 +1,7 @@
 project('kzsh', ['c', 'cpp'], version: '0.1.2')
 
+fs = import('fs')  # ✅ import filesystem module
+
 ksh_version = meson.project_version()
 ksh_build_date = run_command('date', '+%Y-%m-%d').stdout().strip()
 ksh_target = host_machine.cpu_family() + '-' + host_machine.system()
