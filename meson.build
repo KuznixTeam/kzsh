@@ -4,8 +4,11 @@ ksh_version = meson.project_version()
 ksh_build_date = run_command('date', '+%Y-%m-%d').stdout().strip()
 ksh_target = host_machine.cpu_family() + '-' + host_machine.system()
 
-# ✅ safest approach — list or manually glob with `files()`
-# (Meson doesn't support wildcards without modules)
+# Detect compilers explicitly (for old Meson versions)
+cc = meson.get_compiler('c')
+cpp = meson.get_compiler('cpp')
+
+# Collect sources manually (compatible with all Meson versions)
 ksh_sources = []
 if run_command('test', '-d', 'src').returncode() == 0
   c_files = run_command('sh', '-c', 'echo src/*.c', check: false).stdout().strip().split()
