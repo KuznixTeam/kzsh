@@ -1,6 +1,6 @@
 
 #include <iostream>
-#include "../include/ksh.h"
+#include "../include/kzsh.h"
 
 extern "C" void print_version();
 

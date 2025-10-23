@@ -11,7 +11,7 @@
 #include "shell.h"
 #include "utils.h"
 #ifndef KSH_VERSION
-#define KSH_VERSION "0.1.1"
+#define KSH_VERSION "0.1.2"
 #endif
 #ifndef KSH_BUILD_DATE
 #define KSH_BUILD_DATE "unknown"
