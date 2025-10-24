@@ -22,7 +22,6 @@ endif
 executable('kzsh',
   ksh_sources,
   include_directories: include_directories('include'),
-  dependencies: [readline_dep],
   install: true,
   cpp_args: [
     '-DKSH_VERSION="' + ksh_version + '"',
