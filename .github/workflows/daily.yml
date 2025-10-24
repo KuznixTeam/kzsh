@@ -1,4 +1,4 @@
-name: Daily Build Meson Multi-Platform
+name: Daily Build Meson Linux
 
 on:
   schedule:
@@ -7,26 +7,22 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          # Linux targets
-          - os: ubuntu-latest
-            arch: x86_64
-          - os: ubuntu-latest
-            arch: i686
-    name: Build ${{ matrix.os }}-${{ matrix.arch }}
+          - arch: x86_64
+          - arch: i686
+    name: Build Linux-${{ matrix.arch }}
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential meson ninja-build python3-pip xz-utils libreadline-dev
+          sudo apt install -y build-essential meson ninja-build python3-pip xz-utils
           if [ "${{ matrix.arch }}" = "i686" ]; then
               sudo apt install -y gcc-multilib g++-multilib
           fi
@@ -34,22 +30,26 @@ jobs:
       - name: Configure build
         run: |
           mkdir -p build
-          meson setup build --buildtype release
+          if [ "${{ matrix.arch }}" = "i686" ]; then
+              # 32-bit build
+              CC="gcc -m32" CXX="g++ -m32" meson setup build --buildtype release
+          else
+              meson setup build --buildtype release
+          fi
 
       - name: Build
-        run: |
-          meson compile -C build
+        run: meson compile -C build
 
       - name: Package
         run: |
-          LATEST_TAG=$(git rev-parse --short HEAD)
+          COMMIT=$(git rev-parse --short HEAD)
           TODAY=$(date +%Y%m%d)
-          TARGET="${{ matrix.os }}-${{ matrix.arch }}"
+          TARGET="linux-${{ matrix.arch }}"
           mkdir -p dist
-          tar -cJf dist/kzsh-${LATEST_TAG}-${TODAY}-${TARGET}.tar.xz -C build .
+          tar -cJf dist/kzsh-${COMMIT}-${TODAY}-${TARGET}.tar.xz -C build .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kzsh-${{ matrix.os }}-${{ matrix.arch }}
+          name: kzsh-linux-${{ matrix.arch }}
           path: dist/kzsh-*.tar.xz
