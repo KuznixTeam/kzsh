@@ -42,7 +42,6 @@ jobs:
           choco install meson -y
           choco install ninja -y
           choco install xz -y
-          choco install readline -y || echo "readline may not be available on Windows"
 
       - name: Configure build
         run: |
