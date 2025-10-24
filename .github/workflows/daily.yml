@@ -2,43 +2,67 @@ name: Daily Build Meson Multi-Platform
 
 on:
   schedule:
-    # Runs every day at 00:00 UTC
-    - cron: '0 0 * * *'
-  workflow_dispatch: # allows manual trigger
+    - cron: '0 0 * * *'  # daily at 00:00 UTC
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        arch: [x86_64, i686, arm64, riscv64] # Windows will ignore riscv64
+        include:
+          # Linux targets
+          - os: ubuntu-latest
+            arch: x86_64
+          - os: ubuntu-latest
+            arch: i686
+          - os: ubuntu-latest
+            arch: arm64
+          - os: ubuntu-latest
+            arch: riscv64
+          # macOS targets
+          - os: macos-latest
+            arch: x86_64
+          - os: macos-latest
+            arch: arm64
+          # Windows targets
+          - os: windows-latest
+            arch: x86_64
+          - os: windows-latest
+            arch: i686
+          - os: windows-latest
+            arch: arm64
     name: Build ${{ matrix.os }}-${{ matrix.arch }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set up build dependencies
+      - name: Install dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt update
-          sudo apt install -y build-essential meson ninja-build python3-pip xz-utils
-      - name: Set up build dependencies (macOS)
+          sudo apt install -y build-essential meson ninja-build python3-pip xz-utils libreadline-dev gcc-multilib g++-multilib \
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+            gcc-riscv64-linux-gnu g++-riscv64-linux-gnu
+
+      - name: Install dependencies (macOS)
         if: matrix.os == 'macos-latest'
         run: |
           brew update
-          brew install meson ninja xz
-      - name: Set up build dependencies (Windows)
+          brew install meson ninja xz readline
+
+      - name: Install dependencies (Windows)
         if: matrix.os == 'windows-latest'
         run: |
           choco install meson -y
           choco install ninja -y
           choco install xz -y
+          choco install readline -y || echo "readline may not be available on Windows"
 
       - name: Configure build
         run: |
           mkdir -p build
-          meson setup build --buildtype release
+          meson setup build --buildtype release -Dreadline=true
 
       - name: Build
         run: |
