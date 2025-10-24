@@ -16,8 +16,6 @@ jobs:
             arch: x86_64
           - os: ubuntu-latest
             arch: i686
-          - os: ubuntu-latest
-            arch: arm64
           # macOS targets
           - os: macos-latest
             arch: x86_64
@@ -31,6 +29,7 @@ jobs:
           - os: windows-latest
             arch: arm64
     name: Build ${{ matrix.os }}-${{ matrix.arch }}
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -39,8 +38,10 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt update
-          sudo apt install -y build-essential meson ninja-build python3-pip xz-utils libreadline-dev gcc-multilib g++-multilib \
-            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          sudo apt install -y build-essential meson ninja-build python3-pip xz-utils libreadline-dev
+          if [ "${{ matrix.arch }}" = "i686" ]; then
+              sudo apt install -y gcc-multilib g++-multilib
+          fi
 
       - name: Install dependencies (macOS)
         if: matrix.os == 'macos-latest'
