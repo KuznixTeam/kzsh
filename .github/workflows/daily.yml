@@ -1,0 +1,59 @@
+name: Daily Build Meson Multi-Platform
+
+on:
+  schedule:
+    # Runs every day at 00:00 UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch: # allows manual trigger
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        arch: [x86_64, i686, arm64, riscv64] # Windows will ignore riscv64
+    name: Build ${{ matrix.os }}-${{ matrix.arch }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up build dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential meson ninja-build python3-pip xz-utils
+      - name: Set up build dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew update
+          brew install meson ninja xz
+      - name: Set up build dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install meson -y
+          choco install ninja -y
+          choco install xz -y
+
+      - name: Configure build
+        run: |
+          mkdir -p build
+          meson setup build --buildtype release
+
+      - name: Build
+        run: |
+          meson compile -C build
+
+      - name: Package
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0)
+          TODAY=$(date +%Y%m%d)
+          TARGET="${{ matrix.os }}-${{ matrix.arch }}"
+          mkdir -p dist
+          tar -cJf dist/kzsh-${LATEST_TAG}-${TODAY}-${TARGET}.tar.xz -C build .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kzsh-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/kzsh-*.tar.xz
