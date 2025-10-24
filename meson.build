@@ -18,9 +18,6 @@ else
   warning('Source directory "src" does not exist — skipping source files.')
 endif
 
-# Dependencies (glibc is implicit)
-readline_dep = dependency('readline', required: true)
-
 # Build executable
 executable('kzsh',
   ksh_sources,
