@@ -16,11 +16,6 @@ jobs:
             arch: x86_64
           - os: ubuntu-latest
             arch: i686
-          # Windows targets
-          - os: windows-latest
-            arch: x86_64
-          - os: windows-latest
-            arch: i686
     name: Build ${{ matrix.os }}-${{ matrix.arch }}
 
     steps:
@@ -35,13 +30,6 @@ jobs:
           if [ "${{ matrix.arch }}" = "i686" ]; then
               sudo apt install -y gcc-multilib g++-multilib
           fi
-
-      - name: Install dependencies (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          choco install meson -y
-          choco install ninja -y
-          choco install xz -y
 
       - name: Configure build
         run: |
