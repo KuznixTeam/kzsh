@@ -55,7 +55,7 @@ jobs:
 
       - name: Package
         run: |
-          LATEST_TAG=$(git describe --tags --abbrev=0)
+          LATEST_TAG=$(git rev-parse --short HEAD)
           TODAY=$(date +%Y%m%d)
           TARGET="${{ matrix.os }}-${{ matrix.arch }}"
           mkdir -p dist
