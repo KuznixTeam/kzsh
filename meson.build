@@ -16,13 +16,13 @@ is_cross = host_machine.cpu_family() != build_machine.cpu_family()
 # Detect target info
 # -------------------------
 if is_cross
-  # Use host_machine info (from cross file)
+  # cross build: use host_machine info from cross file
   kzsh_uname_m = host_machine.cpu_family()
   kzsh_uname_i = host_machine.cpu()
   kzsh_uname_s = host_machine.system()
-  kzsh_libc = 'glibc'  # default; override in cross file if needed
+  kzsh_libc = 'glibc'  # default; can override in cross file if desired
 else
-  # Native build
+  # native build
   kzsh_uname_m = run_command('uname', '-m', check: false).stdout().strip().to_lower()
   if kzsh_uname_m == ''
     kzsh_uname_m = 'unknown'
@@ -41,7 +41,7 @@ else
     kzsh_uname_s = 'unknown'
   endif
 
-  # detect libc
+  # detect libc via ldd
   ldd_out = run_command('ldd', '--version', check: false).stdout().strip().to_lower()
   if ldd_out != ''
     if ldd_out.contains('musl')
@@ -78,8 +78,17 @@ kzsh_target = kzsh_uname_m + '-' + kzsh_uname_i + '-' + kzsh_uname_s + '-' + kzs
 # Collect source files
 # -------------------------
 kzsh_sources = []
-if meson.is_directory('src')
-  kzsh_sources = files('src/*.c', 'src/*.cpp')
+
+# check if src exists
+test_src = run_command('test', '-d', 'src', check: false)
+if test_src.returncode() == 0
+  c_files = run_command('sh', '-c', 'echo src/*.c', check: false).stdout().strip().split()
+  cpp_files = run_command('sh', '-c', 'echo src/*.cpp', check: false).stdout().strip().split()
+  foreach f : c_files + cpp_files
+    if f != 'src/*.c' and f != 'src/*.cpp'
+      kzsh_sources += files(f)
+    endif
+  endforeach
 else
   warning('Source directory "src" does not exist — skipping source files.')
 endif
