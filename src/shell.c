@@ -4,20 +4,7 @@
  * Prompt format:
  *   [{username}@{hostname} {folder}] $
  *
- * Folder rules:
- *  - If cwd equals user's home and NOT running as root -> "~"
- *  - Otherwise show basename(cwd) (for root this will show e.g. "root" for /root,
- *    but the default behavior is to not abbreviate the home path when running as root)
- *
- * PS1 escapes supported (in expand_ps1):
- *   \u  -> username
- *   \h  -> hostname
- *   \$  -> prompt char ($)
- *   \n  -> newline
- *   \e  -> ESC (start of ANSI color sequences)
- *   \\  -> backslash
- *   \w  -> full cwd (home abbreviated to ~ for non-root users)
- *   \W  -> basename of cwd (with home-abbrev rules applied)
+ * PS1 escapes include \u, \h, \w, \W, \$, \n, \e, \\
  *
  * Minimal builtin line editor (termios-based on POSIX) with history recall.
  */
@@ -355,6 +342,7 @@ static int read_line_posix(char *buf, size_t buflen, const char *prompt) {
     #include <termios.h>
     struct termios orig, raw;
     if (tcgetattr(STDIN_FILENO, &orig) == -1) {
+        /* Fallback: use fgets if tcgetattr not supported */
         if (!fgets(buf, buflen, stdin)) return 0;
         size_t len = strlen(buf);
         if (len && (buf[len-1] == '\n' || buf[len-1] == '\r')) buf[len-1] = '\0';
@@ -365,6 +353,7 @@ static int read_line_posix(char *buf, size_t buflen, const char *prompt) {
     raw.c_cc[VMIN] = 1;
     raw.c_cc[VTIME] = 0;
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) {
+        /* If we can't set, fallback to fgets */
         if (!fgets(buf, buflen, stdin)) return 0;
         size_t len = strlen(buf);
         if (len && (buf[len-1] == '\n' || buf[len-1] == '\r')) buf[len-1] = '\0';
@@ -374,21 +363,24 @@ static int read_line_posix(char *buf, size_t buflen, const char *prompt) {
     size_t len = 0;
     size_t prev_display_len = 0;
     size_t prompt_len = strlen(prompt);
-    int history_index = history_count; /* one past last */
+    int history_index = history_count_get(); /* one past last */
     bool done = false;
 
-    if (write(STDOUT_FILENO, prompt, prompt_len) == -1) { }
+    /* Print prompt */
+    (void)write(STDOUT_FILENO, prompt, prompt_len);
 
     while (!done) {
         unsigned char c;
         ssize_t r = read(STDIN_FILENO, &c, 1);
         if (r == 0) {
+            /* EOF */
             tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig);
             return 0;
         }
         if (r < 0) {
             if (errno == EINTR) {
                 if (got_sigint) {
+                    /* clear line and return interrupted */
                     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig);
                     write(STDOUT_FILENO, "\n", 1);
                     got_sigint = 0;
@@ -402,59 +394,75 @@ static int read_line_posix(char *buf, size_t buflen, const char *prompt) {
         }
 
         if (c == 0x03) { /* Ctrl-C */
+            /* cancel line */
             write(STDOUT_FILENO, "\n", 1);
             tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig);
             return -1;
         } else if (c == '\r' || c == '\n') {
+            /* Enter: finish */
             write(STDOUT_FILENO, "\n", 1);
             buf[len] = '\0';
             tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig);
             return 1;
         } else if (c == 0x7f || c == 0x08) {
+            /* Backspace/Delete */
             if (len > 0) {
                 len--;
+                /* erase character on screen */
                 const char *bs = "\b \b";
                 write(STDOUT_FILENO, bs, 3);
             }
         } else if (c == 0x1b) {
+            /* Escape sequence: attempt to read two more bytes (CSI) */
             unsigned char seq[2] = {0,0};
+            /* Try to read next two bytes without blocking for too long */
             ssize_t r1 = read(STDIN_FILENO, &seq[0], 1);
             if (r1 <= 0) continue;
             ssize_t r2 = read(STDIN_FILENO, &seq[1], 1);
             if (r2 <= 0) continue;
             if (seq[0] == '[') {
                 if (seq[1] == 'A') {
-                    /* Up arrow */
-                    if (history_count == 0) continue;
+                    /* Up arrow -> previous history */
+                    if (history_count_get() == 0) continue;
                     if (history_index > 0) history_index--;
-                    const char *hline = history[history_index];
+                    /* load history[history_index] into buf */
+                    const char *hline = history_get(history_index);
+                    if (!hline) continue;
                     size_t hlen = strlen(hline);
                     if (hlen >= buflen) hlen = buflen - 1;
+                    /* overwrite buffer */
                     len = hlen;
                     memcpy(buf, hline, hlen);
                     buf[len] = '\0';
+                    /* redraw prompt + buffer, clearing leftover */
                     size_t now_display_len = prompt_len + len;
+                    /* clear line: move to beginning and print prompt+content + padding */
                     write(STDOUT_FILENO, "\r", 1);
                     write(STDOUT_FILENO, prompt, prompt_len);
                     write(STDOUT_FILENO, buf, len);
+                    /* if previous display longer, pad spaces to erase */
                     if (prev_display_len > now_display_len) {
                         size_t pad = prev_display_len - now_display_len;
                         for (size_t i = 0; i < pad; ++i) write(STDOUT_FILENO, " ", 1);
                     }
+                    /* move cursor to end of new content */
+                    /* and update prev_display_len */
                     prev_display_len = now_display_len;
                 } else if (seq[1] == 'B') {
-                    /* Down arrow */
-                    if (history_count == 0) continue;
-                    if (history_index < history_count - 1) {
+                    /* Down arrow -> next history (or clear) */
+                    if (history_count_get() == 0) continue;
+                    if (history_index < history_count_get() - 1) {
                         history_index++;
-                        const char *hline = history[history_index];
+                        const char *hline = history_get(history_index);
+                        if (!hline) continue;
                         size_t hlen = strlen(hline);
                         if (hlen >= buflen) hlen = buflen - 1;
                         len = hlen;
                         memcpy(buf, hline, hlen);
                         buf[len] = '\0';
                     } else {
-                        history_index = history_count;
+                        /* move to empty new entry (one past last) */
+                        history_index = history_count_get();
                         len = 0;
                         buf[0] = '\0';
                     }
@@ -467,26 +475,36 @@ static int read_line_posix(char *buf, size_t buflen, const char *prompt) {
                         for (size_t i = 0; i < pad; ++i) write(STDOUT_FILENO, " ", 1);
                     }
                     prev_display_len = now_display_len;
+                } else if (seq[1] == 'C') {
+                    /* Right arrow - ignore for now (no cursor history) */
+                } else if (seq[1] == 'D') {
+                    /* Left arrow - ignore for now */
                 }
             }
         } else if (c >= 0x20 && c < 0x7f) {
+            /* Printable ASCII */
             if (len + 1 < buflen) {
                 buf[len++] = (char)c;
+                /* echo char */
                 char ch = (char)c;
                 write(STDOUT_FILENO, &ch, 1);
                 prev_display_len = prompt_len + len;
+            } else {
+                /* buffer full; ignore further chars */
             }
         } else {
-            /* ignore */
+            /* ignore other control chars */
         }
     }
 
+    /* restore */
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig);
     return 0;
 }
 #endif
 
 /* Fallback read_line for systems without termios (Windows builds) */
+#ifdef _WIN32
 static int read_line_fgets(char *buf, size_t buflen, const char *prompt) {
     fputs(prompt, stdout);
     fflush(stdout);
@@ -501,6 +519,7 @@ static int read_line_fgets(char *buf, size_t buflen, const char *prompt) {
     if (len && (buf[len-1] == '\n' || buf[len-1] == '\r')) buf[len-1] = '\0';
     return 1;
 }
+#endif
 
 /* Portable wrapper */
 static int read_line(char *buf, size_t buflen, const char *prompt) {
