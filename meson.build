@@ -1,7 +1,8 @@
-project('kzsh', ['c', 'cpp'], version: '0.1.2')
+project('kzsh', ['c', 'cpp'], version: '0.2.0.alpha')
 
-ksh_version = meson.project_version()
+ksh_release = meson.project_version()
 ksh_build_date = run_command('date', '+%Y-%m-%d').stdout().strip()
+ksh_current_year = run_command('date', '+%Y').stdout().strip()
 ksh_target = host_machine.cpu_family() + '-' + host_machine.system()
 
 # Collect source files using shell (portable, no modules)
@@ -24,10 +25,12 @@ executable('kzsh',
   include_directories: include_directories('include'),
   install: true,
   cpp_args: [
-    '-DKSH_VERSION="' + ksh_version + '"',
+    '-DKSH_RELEASE="' + ksh_release + '"',
     '-DKSH_BUILD_DATE="' + ksh_build_date + '"',
-    '-DKSH_TARGET="' + ksh_target + '"'
+    '-DKSH_TARGET="' + ksh_target + '"',
+    '-DKSH_CURRENT_YEAR="' + ksh_current_year + '"'
   ]
 )
 
-message('Building kzsh ' + ksh_version + ' for ' + ksh_target + ' (' + ksh_build_date + ')')
+message('Building kzsh ' + ksh_release + ' for ' + ksh_target + ' (' + ksh_build_date + ')')
+message('Release: ' + ksh_release + ' (current year: ' + ksh_current_year + ')')
