@@ -1,3 +1,9 @@
+#include "version.h"
+
+// Example usage
+void ksh_version() {
+    print_version();
+}
 
 #include <iostream>
 #include "../include/kzsh.h"
