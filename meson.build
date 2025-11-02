@@ -1,27 +1,23 @@
 project('kzsh', ['c', 'cpp'], version: '0.2.0.alpha')
 
 # -------------------------
-# Project info and build date
+# Project info
 # -------------------------
 kzsh_release = meson.project_version()
 kzsh_build_date = run_command('date', '+%Y-%m-%d', check: false).stdout().strip()
 kzsh_current_year = run_command('date', '+%Y', check: false).stdout().strip()
 
 # -------------------------
-# Detect cross build
-# -------------------------
-is_cross = host_machine.system() != meson.system()
-
-# -------------------------
 # Detect target info
 # -------------------------
-if is_cross
+# For cross builds, host_machine will be defined by the cross file
+if host_machine
   kzsh_uname_m = host_machine.cpu_family()
   kzsh_uname_i = host_machine.cpu()
   kzsh_uname_s = host_machine.system()
-  kzsh_libc = 'glibc'  # default for cross builds
+  kzsh_libc = 'glibc'  # assume glibc for cross builds; can override in cross file
 else
-  # Native build: detect system info
+  # native build
   kzsh_uname_m = run_command('uname', '-m', check: false).stdout().strip().to_lower()
   if kzsh_uname_m == ''
     kzsh_uname_m = 'unknown'
@@ -40,7 +36,7 @@ else
     kzsh_uname_s = 'unknown'
   endif
 
-  # Detect libc via ldd
+  # detect libc
   ldd_out = run_command('ldd', '--version', check: false).stdout().strip().to_lower()
   if ldd_out != ''
     if ldd_out.contains('musl')
@@ -71,7 +67,6 @@ else
   kzsh_target_libc = 'unknown'
 endif
 
-# Target string: arch-machine-os-libc
 kzsh_target = kzsh_uname_m + '-' + kzsh_uname_i + '-' + kzsh_uname_s + '-' + kzsh_target_libc
 
 # -------------------------
