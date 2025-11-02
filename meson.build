@@ -1,4 +1,3 @@
- url=https://github.com/KuznixTeam/kzsh/blob/main/meson.build
 project('kzsh', ['c', 'cpp'], version: '0.2.0.alpha')
 
 kzsh_release = meson.project_version()
