@@ -8,16 +8,21 @@ kzsh_build_date = run_command('date', '+%Y-%m-%d', check: false).stdout().strip(
 kzsh_current_year = run_command('date', '+%Y', check: false).stdout().strip()
 
 # -------------------------
+# Detect cross build
+# -------------------------
+is_cross = host_machine.cpu_family() != build_machine.cpu_family()
+
+# -------------------------
 # Detect target info
 # -------------------------
-# For cross builds, host_machine will be defined by the cross file
-if host_machine
+if is_cross
+  # Use host_machine info (from cross file)
   kzsh_uname_m = host_machine.cpu_family()
   kzsh_uname_i = host_machine.cpu()
   kzsh_uname_s = host_machine.system()
-  kzsh_libc = 'glibc'  # assume glibc for cross builds; can override in cross file
+  kzsh_libc = 'glibc'  # default; override in cross file if needed
 else
-  # native build
+  # Native build
   kzsh_uname_m = run_command('uname', '-m', check: false).stdout().strip().to_lower()
   if kzsh_uname_m == ''
     kzsh_uname_m = 'unknown'
