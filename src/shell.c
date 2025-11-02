@@ -1,21 +1,25 @@
 /*
  * Portable shell front-end (no readline)
  *
- * Prompt and banner improvements:
- *  - Default prompt: {username}@{hostname}$ (falls back to "I have no name!" and/or username$ when missing)
- *  - PS1 environment variable supported. Recognized escapes:
- *      \u  -> username
- *      \h  -> hostname (omitted if hostname is empty)
- *      \$  -> prompt char ($)
- *      \n  -> newline
- *      \e  -> ESC (start of ANSI color sequences)
- *      \\  -> backslash
- *  - Colors enabled by default when stdout is a TTY (username green, host cyan).
- *  - Banner is printed at startup using compile-time defines.
+ * Prompt format:
+ *   [{username}@{hostname} {folder}] $
  *
- * This file remains fgets-based and portable across platforms that provide
- * basic POSIX-ish APIs (getenv/getpwuid/gethostname). Where platform headers
- * are missing (Windows/MSYS), getenv("USERNAME") is used first for username.
+ * Folder rules:
+ *  - If cwd equals user's home and NOT running as root -> "~"
+ *  - Otherwise show basename(cwd) (for root this will show e.g. "root" for /root,
+ *    but the default behavior is to not abbreviate the home path when running as root)
+ *
+ * PS1 escapes supported (in expand_ps1):
+ *   \u  -> username
+ *   \h  -> hostname
+ *   \$  -> prompt char ($)
+ *   \n  -> newline
+ *   \e  -> ESC (start of ANSI color sequences)
+ *   \\  -> backslash
+ *   \w  -> full cwd (home abbreviated to ~ for non-root users)
+ *   \W  -> basename of cwd (with home-abbrev rules applied)
+ *
+ * Minimal builtin line editor (termios-based on POSIX) with history recall.
  */
 
 #include "shell.h"
@@ -29,6 +33,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <limits.h>
+#include <errno.h>
 
 #include "exec.h"
 #include "history.h"
@@ -39,7 +44,7 @@ extern int alias_count;
 extern char *names[];
 extern char *values[];
 
-/* These macros are populated at build time by Meson. */
+/* Build-time defines from Meson (fall back to safe defaults) */
 #ifndef KSH_RELEASE
 #define KSH_RELEASE "unknown"
 #endif
@@ -75,7 +80,7 @@ static const char *get_username(void) {
         unamebuf[sizeof(unamebuf) - 1] = '\0';
         return unamebuf;
     }
-    /* Fallback string required by user */
+    /* Fallback string */
     strncpy(unamebuf, "I have no name!", sizeof(unamebuf) - 1);
     unamebuf[sizeof(unamebuf) - 1] = '\0';
     return unamebuf;
@@ -86,27 +91,166 @@ static const char *get_hostname(void) {
     static char hostbuf[256];
     hostbuf[0] = '\0';
     if (gethostname(hostbuf, sizeof(hostbuf)) == 0) {
-        /* Ensure null-termination */
         hostbuf[sizeof(hostbuf) - 1] = '\0';
         if (hostbuf[0] != '\0') return hostbuf;
     }
-    /* If gethostname fails, try environment as fallback */
     const char *h = getenv("HOSTNAME");
     if (h && h[0] != '\0') {
         strncpy(hostbuf, h, sizeof(hostbuf) - 1);
         hostbuf[sizeof(hostbuf) - 1] = '\0';
         return hostbuf;
     }
-    /* Return empty string to indicate missing hostname */
     return "";
 }
 
+/* Return user's home directory path (or empty string) */
+static const char *get_home_dir(void) {
+    static char homebuf[PATH_MAX];
+    const char *h = getenv("HOME");
+    if (h && h[0] != '\0') {
+        strncpy(homebuf, h, sizeof(homebuf) - 1);
+        homebuf[sizeof(homebuf) - 1] = '\0';
+        return homebuf;
+    }
+    struct passwd *pw = getpwuid(geteuid());
+    if (pw && pw->pw_dir && pw->pw_dir[0] != '\0') {
+        strncpy(homebuf, pw->pw_dir, sizeof(homebuf) - 1);
+        homebuf[sizeof(homebuf) - 1] = '\0';
+        return homebuf;
+    }
+    homebuf[0] = '\0';
+    return homebuf;
+}
+
+/* Get current working directory into out (size outlen). Returns 0 on success, -1 on error. */
+static int get_cwd_safe(char *out, size_t outlen) {
+    if (!getcwd(out, outlen)) {
+        /* getcwd failed; try PWD env as fallback */
+        const char *pwd = getenv("PWD");
+        if (pwd && pwd[0] != '\0') {
+            strncpy(out, pwd, outlen - 1);
+            out[outlen - 1] = '\0';
+            return 0;
+        }
+        out[0] = '\0';
+        return -1;
+    }
+    return 0;
+}
+
+/* Abbreviate path: if path equals home and NOT running as root -> "~"
+ * else if path is inside home and NOT root -> "~/<rest>"
+ * else return full path or basename depending on mode.
+ *
+ * mode: 0 -> full path with home abbrev (used by \w)
+ *       1 -> basename with home-abbrev rules (used by \W and default folder shown)
+ */
+static void format_path_abbrev(const char *path, char *out, size_t outlen, int mode) {
+    const char *home = get_home_dir();
+    bool have_home = (home && home[0] != '\0');
+    uid_t euid = geteuid();
+    bool is_root = (euid == 0);
+
+    if (mode == 0) {
+        /* full path, possibly abbreviated */
+        if (have_home && !is_root) {
+            size_t homelen = strlen(home);
+            if (strncmp(path, home, homelen) == 0) {
+                if (path[homelen] == '\0') {
+                    /* equals home */
+                    snprintf(out, outlen, "~");
+                    return;
+                } else if (path[homelen] == '/') {
+                    /* inside home */
+                    size_t restlen = strlen(path + homelen);
+                    if (restlen + 2 <= outlen) { /* "~" + "/" + rest */
+                        snprintf(out, outlen, "~%s", path + homelen);
+                        return;
+                    } else {
+                        /* not enough space, fall back to truncated */
+                    }
+                }
+            }
+        }
+        /* default: copy full path */
+        strncpy(out, path, outlen - 1);
+        out[outlen - 1] = '\0';
+        return;
+    } else {
+        /* basename with home-abbrev rules */
+        if (have_home && !is_root) {
+            size_t homelen = strlen(home);
+            if (strncmp(path, home, homelen) == 0) {
+                if (path[homelen] == '\0') {
+                    /* equals home */
+                    snprintf(out, outlen, "~");
+                    return;
+                } else if (path[homelen] == '/') {
+                    /* inside home: last component of rest */
+                    const char *rest = path + homelen + 1; /* skip '/' */
+                    const char *last = strrchr(rest, '/');
+                    if (!last) {
+                        /* rest is single component */
+                        strncpy(out, rest, outlen - 1);
+                        out[outlen - 1] = '\0';
+                        return;
+                    } else {
+                        const char *b = last + 1;
+                        strncpy(out, b, outlen - 1);
+                        out[outlen - 1] = '\0';
+                        return;
+                    }
+                }
+            }
+        }
+        /* else: basename of full path */
+        if (strcmp(path, "/") == 0) {
+            strncpy(out, "/", outlen - 1);
+            out[outlen - 1] = '\0';
+            return;
+        }
+        const char *last = strrchr(path, '/');
+        if (!last) {
+            strncpy(out, path, outlen - 1);
+            out[outlen - 1] = '\0';
+            return;
+        } else {
+            const char *b = last + 1;
+            if (*b == '\0') {
+                /* path ends with '/', remove trailing slashes and retry */
+                size_t plen = strlen(path);
+                while (plen > 1 && path[plen - 1] == '/') plen--;
+                /* find previous slash */
+                size_t i = plen;
+                while (i > 0 && path[i-1] != '/') i--;
+                if (i == plen) {
+                    strncpy(out, "/", outlen - 1);
+                    out[outlen - 1] = '\0';
+                    return;
+                }
+                const char *bb = path + i;
+                strncpy(out, bb, outlen - 1);
+                out[outlen - 1] = '\0';
+                return;
+            } else {
+                strncpy(out, b, outlen - 1);
+                out[outlen - 1] = '\0';
+                return;
+            }
+        }
+    }
+}
+
 /* Expand PS1-like escapes into out buffer, safe for given outlen.
- * Recognizes: \u \h \$ \n \e \\  (and passes through other chars).
+ * Recognizes: \u \h \$ \n \e \\ \w \W
  * If hostname is empty, \h expands to nothing.
  */
 static void expand_ps1(const char *ps1, char *out, size_t outlen, const char *username, const char *hostname) {
     size_t o = 0;
+    char tmpbuf[PATH_MAX * 2];
+    char cwd[PATH_MAX];
+    cwd[0] = '\0';
+    (void)get_cwd_safe(cwd, sizeof(cwd));
     for (size_t i = 0; ps1[i] != '\0' && o + 1 < outlen; ++i) {
         char c = ps1[i];
         if (c == '\\' && ps1[i+1] != '\0') {
@@ -115,14 +259,32 @@ static void expand_ps1(const char *ps1, char *out, size_t outlen, const char *us
             const char *rep = NULL;
             char tmp[2] = {0,0};
             switch (esc) {
-                case 'u': rep = username; break;
-                case 'h': rep = (hostname && hostname[0] != '\0') ? hostname : ""; break;
-                case '$': tmp[0] = '$'; rep = tmp; break;
-                case 'n': tmp[0] = '\n'; rep = tmp; break;
-                case 'e': tmp[0] = '\x1b'; rep = tmp; break; /* ANSI ESC */
-                case '\\': tmp[0] = '\\'; rep = tmp; break;
+                case 'u':
+                    rep = username;
+                    break;
+                case 'h':
+                    rep = (hostname && hostname[0] != '\0') ? hostname : "";
+                    break;
+                case '$':
+                    tmp[0] = '$'; rep = tmp; break;
+                case 'n':
+                    tmp[0] = '\n'; rep = tmp; break;
+                case 'e':
+                    tmp[0] = '\x1b'; rep = tmp; break;
+                case '\\':
+                    tmp[0] = '\\'; rep = tmp; break;
+                case 'w':
+                    /* full cwd with home abbrev for non-root */
+                    format_path_abbrev(cwd, tmpbuf, sizeof(tmpbuf), 0);
+                    rep = tmpbuf;
+                    break;
+                case 'W':
+                    /* basename with home-abbrev rules */
+                    format_path_abbrev(cwd, tmpbuf, sizeof(tmpbuf), 1);
+                    rep = tmpbuf;
+                    break;
                 default:
-                    /* Unknown escape -> output as-is: backslash + char */
+                    /* unknown escape -> keep backslash + char */
                     if (o + 2 < outlen) {
                         out[o++] = '\\';
                         out[o++] = esc;
@@ -147,32 +309,206 @@ static void expand_ps1(const char *ps1, char *out, size_t outlen, const char *us
 }
 
 /* Build the prompt string into dst (of dstlen). If PS1 env var present, expand it
- * with supported escapes. Otherwise build default: username@hostname$ with color
- * when connected to a TTY.
+ * with supported escapes. Otherwise build default: [username@hostname folder] $ with colors.
  */
 static void build_prompt(char *dst, size_t dstlen, const char *username, const char *hostname) {
     const char *ps1 = getenv("PS1");
     bool use_tty_colors = isatty(STDOUT_FILENO);
+    char folder[PATH_MAX];
+    char cwd[PATH_MAX];
+    cwd[0] = '\0';
+    get_cwd_safe(cwd, sizeof(cwd));
+    format_path_abbrev(cwd, folder, sizeof(folder), 1); /* basename with home-abbrev rules */
+
     if (ps1 && ps1[0] != '\0') {
-        /* Expand PS1; user may include ANSI via \e[...]m sequences */
         expand_ps1(ps1, dst, dstlen, username, hostname);
         return;
     }
 
-    /* Default formatted prompt with colors (if TTY) */
     const char *clr_user = use_tty_colors ? "\x1b[32m" : ""; /* green */
     const char *clr_host = use_tty_colors ? "\x1b[36m" : ""; /* cyan */
+    const char *clr_folder = use_tty_colors ? "\x1b[33m" : ""; /* yellow */
     const char *clr_reset = use_tty_colors ? "\x1b[0m"  : "";
 
     if (hostname && hostname[0] != '\0') {
-        /* username@hostname$ */
-        snprintf(dst, dstlen, "%s%s%s@%s%s%s$ ", 
+        /* [user@host folder] $ */
+        snprintf(dst, dstlen, "[%s%s%s@%s%s%s %s%s%s] $ ",
                  clr_user, username, clr_reset,
-                 clr_host, hostname, clr_reset);
+                 clr_host, hostname, clr_reset,
+                 clr_folder, folder, clr_reset);
     } else {
-        /* hostname missing -> username$ */
-        snprintf(dst, dstlen, "%s%s%s$ ", clr_user, username, clr_reset);
+        /* [user folder] $ */
+        snprintf(dst, dstlen, "[%s%s%s %s%s%s] $ ",
+                 clr_user, username, clr_reset,
+                 clr_folder, folder, clr_reset);
     }
+}
+
+#ifndef _WIN32
+/* POSIX: simple line reader with basic editing and history navigation.
+ * Returns:
+ *  1 - read a line successfully (buf filled, NUL-terminated)
+ *  0 - EOF (caller should exit)
+ * -1 - input cancelled (Ctrl-C) -> caller should continue loop and show prompt
+ */
+static int read_line_posix(char *buf, size_t buflen, const char *prompt) {
+    #include <termios.h>
+    struct termios orig, raw;
+    if (tcgetattr(STDIN_FILENO, &orig) == -1) {
+        if (!fgets(buf, buflen, stdin)) return 0;
+        size_t len = strlen(buf);
+        if (len && (buf[len-1] == '\n' || buf[len-1] == '\r')) buf[len-1] = '\0';
+        return 1;
+    }
+    raw = orig;
+    raw.c_lflag &= ~(ECHO | ICANON);
+    raw.c_cc[VMIN] = 1;
+    raw.c_cc[VTIME] = 0;
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) {
+        if (!fgets(buf, buflen, stdin)) return 0;
+        size_t len = strlen(buf);
+        if (len && (buf[len-1] == '\n' || buf[len-1] == '\r')) buf[len-1] = '\0';
+        return 1;
+    }
+
+    size_t len = 0;
+    size_t prev_display_len = 0;
+    size_t prompt_len = strlen(prompt);
+    int history_index = history_count; /* one past last */
+    bool done = false;
+
+    if (write(STDOUT_FILENO, prompt, prompt_len) == -1) { }
+
+    while (!done) {
+        unsigned char c;
+        ssize_t r = read(STDIN_FILENO, &c, 1);
+        if (r == 0) {
+            tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig);
+            return 0;
+        }
+        if (r < 0) {
+            if (errno == EINTR) {
+                if (got_sigint) {
+                    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig);
+                    write(STDOUT_FILENO, "\n", 1);
+                    got_sigint = 0;
+                    return -1;
+                }
+                continue;
+            } else {
+                tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig);
+                return 0;
+            }
+        }
+
+        if (c == 0x03) { /* Ctrl-C */
+            write(STDOUT_FILENO, "\n", 1);
+            tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig);
+            return -1;
+        } else if (c == '\r' || c == '\n') {
+            write(STDOUT_FILENO, "\n", 1);
+            buf[len] = '\0';
+            tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig);
+            return 1;
+        } else if (c == 0x7f || c == 0x08) {
+            if (len > 0) {
+                len--;
+                const char *bs = "\b \b";
+                write(STDOUT_FILENO, bs, 3);
+            }
+        } else if (c == 0x1b) {
+            unsigned char seq[2] = {0,0};
+            ssize_t r1 = read(STDIN_FILENO, &seq[0], 1);
+            if (r1 <= 0) continue;
+            ssize_t r2 = read(STDIN_FILENO, &seq[1], 1);
+            if (r2 <= 0) continue;
+            if (seq[0] == '[') {
+                if (seq[1] == 'A') {
+                    /* Up arrow */
+                    if (history_count == 0) continue;
+                    if (history_index > 0) history_index--;
+                    const char *hline = history[history_index];
+                    size_t hlen = strlen(hline);
+                    if (hlen >= buflen) hlen = buflen - 1;
+                    len = hlen;
+                    memcpy(buf, hline, hlen);
+                    buf[len] = '\0';
+                    size_t now_display_len = prompt_len + len;
+                    write(STDOUT_FILENO, "\r", 1);
+                    write(STDOUT_FILENO, prompt, prompt_len);
+                    write(STDOUT_FILENO, buf, len);
+                    if (prev_display_len > now_display_len) {
+                        size_t pad = prev_display_len - now_display_len;
+                        for (size_t i = 0; i < pad; ++i) write(STDOUT_FILENO, " ", 1);
+                    }
+                    prev_display_len = now_display_len;
+                } else if (seq[1] == 'B') {
+                    /* Down arrow */
+                    if (history_count == 0) continue;
+                    if (history_index < history_count - 1) {
+                        history_index++;
+                        const char *hline = history[history_index];
+                        size_t hlen = strlen(hline);
+                        if (hlen >= buflen) hlen = buflen - 1;
+                        len = hlen;
+                        memcpy(buf, hline, hlen);
+                        buf[len] = '\0';
+                    } else {
+                        history_index = history_count;
+                        len = 0;
+                        buf[0] = '\0';
+                    }
+                    size_t now_display_len = prompt_len + len;
+                    write(STDOUT_FILENO, "\r", 1);
+                    write(STDOUT_FILENO, prompt, prompt_len);
+                    write(STDOUT_FILENO, buf, len);
+                    if (prev_display_len > now_display_len) {
+                        size_t pad = prev_display_len - now_display_len;
+                        for (size_t i = 0; i < pad; ++i) write(STDOUT_FILENO, " ", 1);
+                    }
+                    prev_display_len = now_display_len;
+                }
+            }
+        } else if (c >= 0x20 && c < 0x7f) {
+            if (len + 1 < buflen) {
+                buf[len++] = (char)c;
+                char ch = (char)c;
+                write(STDOUT_FILENO, &ch, 1);
+                prev_display_len = prompt_len + len;
+            }
+        } else {
+            /* ignore */
+        }
+    }
+
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig);
+    return 0;
+}
+#endif
+
+/* Fallback read_line for systems without termios (Windows builds) */
+static int read_line_fgets(char *buf, size_t buflen, const char *prompt) {
+    fputs(prompt, stdout);
+    fflush(stdout);
+    if (!fgets(buf, buflen, stdin)) {
+        if (feof(stdin)) {
+            fputs("\n", stdout);
+            return 0;
+        }
+        return -1;
+    }
+    size_t len = strlen(buf);
+    if (len && (buf[len-1] == '\n' || buf[len-1] == '\r')) buf[len-1] = '\0';
+    return 1;
+}
+
+/* Portable wrapper */
+static int read_line(char *buf, size_t buflen, const char *prompt) {
+#ifndef _WIN32
+    return read_line_posix(buf, buflen, prompt);
+#else
+    return read_line_fgets(buf, buflen, prompt);
+#endif
 }
 
 /* Forward-declare helper used by `source` builtin too */
@@ -223,13 +559,6 @@ void shell_start(const char *version) {
     /* For fastfetch / compatibility */
     setenv("KSH_VERSION", version ? version : KSH_RELEASE, 1);
 
-    /* Print improved banner */
-    printf("kzsh, version %s (%s)\n", KSH_RELEASE, KSH_TARGET);
-    printf("Copyright (C) %s Kuznix\n", KSH_CURRENT_YEAR);
-    printf("License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n\n");
-    printf("This is free software; you can redistribute it and/or modify it.\n");
-    printf("There is NO WARRANTY, to the extent permitted by law.\n\n");
-
     /* Install SIGINT handler */
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
@@ -238,7 +567,7 @@ void shell_start(const char *version) {
     sa.sa_flags = 0;
     sigaction(SIGINT, &sa, NULL);
 
-    /* Interactive loop using fgets (portable) */
+    /* Interactive loop using our portable read_line */
     char buf[512];
     char prompt[512];
     const char *username = get_username();
@@ -248,50 +577,21 @@ void shell_start(const char *version) {
     setvbuf(stdout, NULL, _IOLBF, 0);
 
     for (;;) {
-        /* Recompute username/hostname each loop in case env/user context changed */
         username = get_username();
         hostname = get_hostname();
 
-        /* Build prompt (PS1 override supported) */
         build_prompt(prompt, sizeof(prompt), username, hostname);
 
-        /* Print prompt */
-        fputs(prompt, stdout);
-        fflush(stdout);
-
-        /* Read a line */
-        if (!fgets(buf, sizeof(buf), stdin)) {
-            /* If fgets returned NULL, either EOF or error/interrupt */
-            if (feof(stdin)) {
-                /* End-of-file: exit cleanly */
-                printf("\n");
-                break;
-            }
-            /* If interrupted by SIGINT, clear the flag and continue */
-            if (got_sigint) {
-                got_sigint = 0;
-                printf("\n");
-                continue;
-            }
-            /* Other errors: break */
+        int rl = read_line(buf, sizeof(buf), prompt);
+        if (rl == 0) {
+            /* EOF -> exit */
             break;
-        }
-
-        /* If SIGINT was received while reading, drop the current input */
-        if (got_sigint) {
-            got_sigint = 0;
-            /* Discard the buffer contents and continue */
+        } else if (rl == -1) {
+            /* interrupted (Ctrl-C) -> show fresh prompt */
             continue;
+        } else {
+            shell_eval_line(buf);
         }
-
-        /* Trim newline at end if present */
-        size_t len = strlen(buf);
-        if (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r')) {
-            buf[len - 1] = '\0';
-        }
-
-        /* Evaluate the line */
-        shell_eval_line(buf);
     }
 
     /* Cleanup or finalization can go here */
