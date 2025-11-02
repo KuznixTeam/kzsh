@@ -4,18 +4,18 @@ project('kzsh', ['c', 'cpp'], version: '0.2.0.alpha')
 # Project info and build date
 # -------------------------
 kzsh_release = meson.project_version()
-kzsh_build_date = run_command('date', '+%Y-%m-%d').stdout().strip()
-kzsh_current_year = run_command('date', '+%Y').stdout().strip()
+kzsh_build_date = run_command('date', '+%Y-%m-%d', check: false).stdout().strip()
+kzsh_current_year = run_command('date', '+%Y', check: false).stdout().strip()
 
 # -------------------------
 # Detect target (cross or native)
 # -------------------------
-if host_machine.is_cross_build()
-  # Use host_machine info for cross builds
+if meson.cross_build()
+  # Cross build: use host_machine info
   kzsh_uname_m = host_machine.cpu_family()
   kzsh_uname_i = host_machine.cpu()
   kzsh_uname_s = host_machine.system()
-  # libc detection for cross builds: default to glibc, map later to 'gnu'
+  # Default libc for cross builds
   kzsh_libc = 'glibc'
 else
   # Native build: detect system info using uname/ldd
@@ -37,7 +37,7 @@ else
     kzsh_uname_s = 'unknown'
   endif
 
-  # Detect libc via ldd --version output (best-effort)
+  # Detect libc via ldd --version output
   ldd_out = run_command('ldd', '--version', check: false).stdout().strip().to_lower()
   if ldd_out != ''
     if ldd_out.contains('musl')
