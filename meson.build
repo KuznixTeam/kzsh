@@ -62,7 +62,7 @@ endif
 # -------------------------
 if kzsh_libc == 'glibc'
   kzsh_target_libc = 'gnu'
-elseif kzsh_libc == 'musl'
+elif kzsh_libc == 'musl'
   kzsh_target_libc = 'musl'
 else
   kzsh_target_libc = 'unknown'
